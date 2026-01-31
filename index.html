@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title> Willst du mein Valentinsdate sein ? </title>
+
+<style>
+:root{
+  --bg1:#f7c3d9;
+  --bg2:#eaa0c2;
+  --card:#f6f2f2;
+  --text:#111;
+  --muted:#8f8f8f;
+  --yes:#e61b6a;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background: radial-gradient(circle at 50% 30%, var(--bg1), var(--bg2));
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  overflow:hidden;
+  padding:24px;
+}
+
+/* background canvas */
+#fx{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  z-index:1;
+  pointer-events:none;
+}
+
+/* Card */
+.card{
+  position:relative;
+  z-index:2;
+  width:min(760px, 94vw);
+  background:var(--card);
+  border-radius:22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  padding:36px 28px 22px;
+  text-align:center;
+}
+
+/* Icon */
+.icon{
+  width:72px;
+  height:72px;
+  object-fit:contain;
+  margin:0 auto 16px;
+  display:block;
+}
+
+/* Title */
+h1{
+  margin:0 0 22px;
+  font-size:clamp(22px, 3.5vw, 34px);
+  font-weight:800;
+  text-transform:lowercase;
+  color:var(--text);
+}
+
+/* Buttons */
+.controls{
+  position:relative;
+  width:420px;
+  max-width:100%;
+  height:90px;
+  margin:0 auto;
+}
+
+#yes{
+  position:absolute;
+  left:40px;
+  top:18px;
+  border:0;
+  border-radius:999px;
+  padding:14px 36px;
+  font-size:18px;
+  font-weight:800;
+  cursor:pointer;
+  background:var(--yes);
+  color:white;
+  box-shadow:0 18px 36px rgba(230,27,106,.35);
+}
+#yes:active{ transform:scale(.97); }
+
+#no{
+  position:absolute;
+  left:300px;
+  top:36px;
+  border:0;
+  background:none;
+  padding:6px 10px;
+  font-size:13px;
+  color:var(--muted);
+  cursor:pointer;
+  transition:left .14s ease, top .14s ease;
+  touch-action:manipulation;
+  user-select:none;
+}
+
+.caption{
+  margin-top:14px;
+  font-size:12px;
+  color:#555;
+}
+
+#result{
+  margin-top:14px;
+  min-height:22px;
+  font-weight:800;
+}
+</style>
+</head>
+
+<body>
+<canvas id="fx"></canvas>
+
+<main class="card">
+  <img class="icon" src="icon.png" alt="icon" onerror="this.style.display='none'">
+  <h1 id="title"> Benni willst du mein Valentinsdate sein?</h1>
+
+  <div class="controls" id="arena">
+    <button id="yes" type="button">Yes</button>
+    <button id="no" type="button">No</button>
+  </div>
+
+  <div class="caption">"No" ist heute sehr schüchtern😈</div>
+  <div id="result"></div>
+</main>
+
+<script>
+/* =========================
+   TEXT / BUTTONS
+========================= */
+const name = "Benni";
+document.getElementById("title").textContent =
+  `${name.toLowerCase()} willst du mein Valentinsdate sein?`;
+
+document.getElementById("yes").onclick = () => {
+  document.getElementById("result").textContent = "Jaaa ich liebe dich 🥰";
+};
+
+/* NO ESCAPE */
+const no = document.getElementById("no");
+const arena = document.getElementById("arena");
+
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function fleeRandom(){
+  const a = arena.getBoundingClientRect();
+  const b = no.getBoundingClientRect();
+
+  // keep padding so it never touches edges
+  const pad = 10;
+  const nx = clamp(Math.random() * (a.width  - b.width),  pad, a.width  - b.width  - pad);
+  const ny = clamp(Math.random() * (a.height - b.height), pad, a.height - b.height - pad);
+
+  no.style.left = nx + "px";
+  no.style.top  = ny + "px";
+}
+
+// works for mouse + touch + pen
+no.addEventListener("pointerenter", fleeRandom);
+no.addEventListener("pointerdown", (e)=>{ e.preventDefault(); fleeRandom(); });
+
+/* =========================
+   BACKGROUND: FALLING HEARTS (CANVAS)
+========================= */
+const canvas = document.getElementById("fx");
+const ctx = canvas.getContext("2d");
+
+let W=0, H=0, DPR=1;
+const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+function rand(min,max){ return Math.random()*(max-min)+min; }
+
+/* Heart sprites */
+function makeHeartSprite(size, fill){
+  const off = document.createElement("canvas");
+  off.width = off.height = size;
+  const c = off.getContext("2d");
+
+  c.translate(size/2, size/2);
+
+  // soft glow
+  c.shadowColor = "rgba(255,255,255,0.55)";
+  c.shadowBlur = Math.max(6, size*0.18);
+
+  // draw heart with bezier curves
+  const s = size * 0.9;
+  c.scale(s/32, s/32);
+  c.fillStyle = fill;
+
+  c.beginPath();
+  c.moveTo(0, 10);
+  c.bezierCurveTo(12, -6, 32, 6, 0, 30);
+  c.bezierCurveTo(-32, 6, -12, -6, 0, 10);
+  c.closePath();
+  c.fill();
+
+  // tiny highlight
+  c.shadowBlur = 0;
+  c.globalAlpha = 0.25;
+  c.fillStyle = "rgba(255,255,255,0.9)";
+  c.beginPath();
+  c.ellipse(-4, 2, 4, 7, -0.5, 0, Math.PI*2);
+  c.fill();
+
+  return off;
+}
+
+const HEART_COLORS = ["#ff5fa2","#ff7eb6","#ff9ecf","#e61b6a","#ffd1e6"];
+const HEART_SPRITES = [];
+for(const col of HEART_COLORS){
+  HEART_SPRITES.push(makeHeartSprite(26, col));
+  HEART_SPRITES.push(makeHeartSprite(34, col));
+  HEART_SPRITES.push(makeHeartSprite(44, col));
+}
+
+const hearts = [];
+
+function initHearts(){
+  hearts.length = 0;
+
+  // density scaled + capped
+  const base = (W*H)/14000;
+  const count = Math.max(70, Math.min(200, Math.floor(base)));
+
+  for(let i=0;i<count;i++){
+    hearts.push({
+      sprite: HEART_SPRITES[(Math.random()*HEART_SPRITES.length)|0],
+      x: rand(0, W),
+      y: rand(0, H),
+      vy: rand(0.6, 2.1) * (reduceMotion ? 0.35 : 1),
+      vx: rand(-0.35, 0.35),
+      wob: rand(0, Math.PI*2),
+      wobSpd: rand(0.01, 0.03) * (reduceMotion ? 0.35 : 1),
+      rot: rand(0, Math.PI*2),
+      rotSpd: rand(-0.02, 0.02) * (reduceMotion ? 0.35 : 1),
+      a: rand(0.55, 1),
+      s: rand(0.75, 1.25),
+      drift: rand(-0.45, 0.45)
+    });
+  }
+}
+initHearts();
+window.addEventListener("resize", initHearts);
+
+let last = performance.now();
+
+function loop(now){
+  const dt = Math.min(32, now-last)/16.6667;
+  last = now;
+
+  ctx.clearRect(0,0,W,H);
+
+  for(const h of hearts){
+    h.wob += h.wobSpd * dt;
+    h.rot += h.rotSpd * dt;
+
+    const wind = Math.sin(h.wob) * 0.8 + h.drift;
+    h.x += (h.vx + wind) * dt * 1.4;
+    h.y += h.vy * dt * 1.4;
+
+    if(h.y > H + 70){
+      h.y = -70;
+      h.x = rand(0, W);
+    }
+    if(h.x < -80) h.x = W + 80;
+    if(h.x > W + 80) h.x = -80;
+
+    const img = h.sprite;
+    const w = img.width  * h.s;
+    const hh = img.height * h.s;
+
+    ctx.save();
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.rot);
+    ctx.globalAlpha = h.a;
+
+    // subtle extra glow layer
+    ctx.globalAlpha = h.a * 0.35;
+    ctx.shadowColor = "rgba(255,220,238,0.9)";
+    ctx.shadowBlur = 14;
+    ctx.drawImage(img, -w/2, -hh/2, w, hh);
+
+    ctx.globalAlpha = h.a;
+    ctx.shadowBlur = 0;
+    ctx.drawImage(img, -w/2, -hh/2, w, hh);
+
+    ctx.restore();
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
